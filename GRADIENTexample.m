@@ -2,10 +2,13 @@ clc;
 %%
 %INITIALIZATION
 %   seting up the grid dimensions, voltages of the container and the key
+%   and the number of iteration for the update algorithm
 c_voltage = 0;
 key_voltage = 5;
 hor_dim = 160;
 ver_dim = 160;
+iter_no = 1000;
+
 
 %%
 %DEFININING THE CONTAINER
@@ -15,6 +18,7 @@ yv=[1 1 6 6 1];
 hold on;
 plot(xv,yv);
 axis equal;
+
 
 %%
 %DEFINING THE KEY
@@ -98,39 +102,54 @@ end
 %
 figure;
 surf(x,y,v);
-pause;
+
+
+ErrorGraph = [];
+%n_notfixed = length(find(fixed==0));
+
+
 %while(1)
-for loopn = 1:50
-for i=1:ver_dim
-    mask = [0 1 0;
-            1 0 1;
-            0 1 0];
-    
-    for j=1:hor_dim
-        if (fixed(i,j)==0)
-            if (i+1>ver_dim)
-                mask(3,:) = 0;
-            end
-            if (i-1<1)
-                mask(1,:) = 0;
-            end
-            if (j+1>hor_dim)
-                mask(:,3) = 0;
-            end
-            if (j-1<1)
-                mask(:,1) = 0;
-            end
+for loopn = 1:iter_no
+    disp(['Iteration: ', num2str(loopn)]);
+    ErrorSqSum = 0;
+    n_updated = 0;
+    for i=1:ver_dim
+        mask = [0 1 0;
+                1 0 1;
+                0 1 0];
 
-            [xh,yh]=find(mask==1);
+        for j=1:hor_dim
+            if (fixed(i,j)==0)
+                if (i+1>ver_dim)
+                    mask(3,:) = 0;
+                end
+                if (i-1<1)
+                    mask(1,:) = 0;
+                end
+                if (j+1>hor_dim)
+                    mask(:,3) = 0;
+                end
+                if (j-1<1)
+                    mask(:,1) = 0;
+                end
 
-            l=[];
-            for k=1:length(xh)
-                l=[l v(xh(k)+i-2,yh(k)+j-2)];
+                [xh,yh]=find(mask==1);
+
+                l=[];
+                for k=1:length(xh)
+                    l=[l v(xh(k)+i-2,yh(k)+j-2)];
+                end
+                ErrorSqSum = ErrorSqSum + (v(i,j)-mean(l))^2;
+                if (ErrorSqSum > 0)
+                    n_updated = n_updated + 1;
+                end
+                v(i,j)=mean(l);
+                
             end
-            v(i,j)=mean(l);
-        end
+        end  
     end
-end
+    
+    ErrorGraph = [ErrorGraph sqrt(ErrorSqSum)/n_updated];
 %surf(x,y,v);
 %pause;
 end
@@ -141,7 +160,23 @@ surf(x,y,v);
 %CALCULATION OF ELECTRIC FIELD (E=-grad(V))
 [fx,t]=gradient(v/dx);
 [t,fy]=gradient(v/dy);
-Ex=-fx
-Ey=-fy
+Ex=-fx;
+Ey=-fy;
 
 
+%%
+%PLOT THE ERROR GRAPH
+figure;
+plot(1:length(ErrorGraph), ErrorGraph, 'b');
+title(['RMS Error vs. Number of Iterations']);
+ylabel('RMS Error');
+xlabel('Number of Iterations');
+
+
+%%
+%PLOT OF THE ELECTRIC FIELD
+figure;
+pcolor(sqrt(Ex.^2+Ey.^2));
+shading interp;
+hold on;
+quiver(Ex,Ey);
